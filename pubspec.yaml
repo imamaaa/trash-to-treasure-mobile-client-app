@@ -1,0 +1,82 @@
+name: myapp
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.1 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_svg: ^2.0.10+1
+  google_fonts: ^6.2.1
+  cupertino_icons: ^1.0.6
+  qr_code_scanner: ^1.0.1
+  firebase_core: ^3.1.1
+  firebase_auth: ^5.1.1
+  cloud_firestore: ^5.0.2
+  firebase_messaging: ^15.0.2
+  email_validator: ^3.0.0
+  url_launcher: ^6.1.10
+  image_picker: ^0.8.7
+  firebase_storage: ^12.2.0
+  permission_handler: ^11.3.1
+  intl: ^0.19.0
+  qr_flutter: ^4.1.0
+
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/vectors/splashTrash.svg
+    - assets/vectors/lockAndDots.svg
+    - assets/vectors/backArrow.svg
+    - assets/vectors/qrcode.svg
+    - assets/vectors/gift.svg
+    - assets/vectors/trophy.svg
+    - assets/vectors/dashboard.svg
+    - assets/vectors/signUp.svg
+    - assets/vectors/OTP.svg
+    - assets/vectors/verified_person.svg
+    - assets/vectors/questionMark.svg
+    - assets/vectors/feedback.svg
+    - assets/vectors/homeSelected.svg
+    - assets/vectors/keypad.svg
+    - assets/vectors/medal.svg
+    - assets/vectors/medalHome.svg
+    - assets/vectors/OTP.svg
+    - assets/vectors/qrcode.svg
+    - assets/vectors/qrCodeHome.svg
+    - assets/vectors/qrScan.svg
+    - assets/vectors/questionMark.svg
+    - assets/vectors/receipt.svg
+    - assets/vectors/settingsHome.svg
+    - assets/vectors/shop.svg
+    - assets/vectors/trophyFeature.svg
+    - assets/vectors/user.png
+    - assets/vectors/GreenWallet.svg
+    - assets/vectors/wallet.svg
+    - assets/vectors/rightArrow.svg
+    - assets/vectors/getPointsWallet.svg
+    - assets/vectors/passChangeSuccess.svg
+    - assets/vectors/Avatar.svg
+    - assets/vectors/putInMoney.svg
+    - assets/vectors/first_step.svg
+    - assets/vectors/recycler_rookie.svg
+    - assets/vectors/plastic_hero.svg
+    - assets/vectors/metal_guardian.svg
+    - assets/vectors/paper_saver.svg
+    - assets/vectors/consistent_crusader.svg
+    - assets/vectors/eco_warrior.svg
+    - assets/vectors/green_navigator.svg
+    - assets/vectors/planet_protector.svg
+    - assets/vectors/zero_waste.svg

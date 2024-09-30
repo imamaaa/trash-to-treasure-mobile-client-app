@@ -1,0 +1,25 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "trashtotreasure-4a540",
+          "appId": "1:228866710479:android:8ea5df349704715eee90ba",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "trashtotreasure-4a540",
+          "configurations": {
+            "android": "1:228866710479:android:8ea5df349704715eee90ba",
+            "ios": "1:228866710479:ios:b0333185b151146aee90ba"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+
+  ]
+}
