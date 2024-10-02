@@ -7,6 +7,29 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class ProfilePage extends StatelessWidget {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  // Fetch total balance from userWallet collection based on the logged-in user's ID
+  Future<int> _getUserWalletBalance() async {
+    try {
+      User? user = _auth.currentUser;
+      if (user != null) {
+        DocumentSnapshot userWalletDoc = await FirebaseFirestore.instance
+            .collection('userWallets')
+            .doc(user.uid)
+            .get();
+
+        if (userWalletDoc.exists) {
+          Map<String, dynamic>? data = userWalletDoc.data() as Map<String, dynamic>?;
+          int balance = data?['currentPoints'] ?? 0; // Fetch balance, default to 0 if not present
+          return balance;
+        }
+      }
+    } catch (e) {
+      print("Error fetching wallet balance: $e");
+    }
+    return 0; // Default balance if there's an issue
+  }
+
+
   Future<Map<String, String?>> _getUserInfo() async {
     try {
       User? user = _auth.currentUser;
@@ -180,7 +203,22 @@ class ProfilePage extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    buildWalletInfo(context, screenWidth, screenHeight),
+                    // Wallet info widget
+                    FutureBuilder<int>(
+                      future: _getUserWalletBalance(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return CircularProgressIndicator(); // Loading state
+                        } else if (snapshot.hasError) {
+                          return Text('Error loading balance');
+                        } else if (!snapshot.hasData || snapshot.data == null) {
+                          return Text('Balance unavailable');
+                        }
+
+                        int totalBalance = snapshot.data!; // Get balance data
+                        return buildWalletInfo(context, screenWidth, screenHeight, totalBalance);
+                      },
+                    ),
                     buildActionButtons(context, screenWidth, screenHeight),
                   ],
                 ),
@@ -193,7 +231,8 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Widget buildWalletInfo(BuildContext context, double screenWidth, double screenHeight) {
+  // Build wallet info widget
+  Widget buildWalletInfo(BuildContext context, double screenWidth, double screenHeight, int totalBalance) {
     return Container(
       width: screenWidth,
       margin: EdgeInsets.only(top: screenHeight * 0.03, bottom: screenHeight * 0.02),
@@ -207,8 +246,8 @@ class ProfilePage extends StatelessWidget {
             ),
           ),
           Positioned(
-            left: 30, // Adjusted for positioning within the SVG
-            top: screenHeight * 0.10, // Adjusted for better positioning
+            left: 55, // Adjusted for positioning within the SVG
+            top: screenHeight * 0.09, // Adjusted for better positioning
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -223,7 +262,7 @@ class ProfilePage extends StatelessWidget {
                 ),
                 SizedBox(height: screenHeight * 0.01),
                 Text(
-                  '346952 points',
+                  '$totalBalance points', // Display fetched balance
                   style: GoogleFonts.getFont(
                     'Poppins',
                     fontWeight: FontWeight.w600,
@@ -235,12 +274,12 @@ class ProfilePage extends StatelessWidget {
             ),
           ),
           Positioned(
-            right: 30, // Adjusted for positioning within the SVG
-            bottom: screenHeight * 0.05,
+            right: 55, // Adjusted for positioning within the SVG
+            bottom: screenHeight * 0.07,
             child: GestureDetector(
               onTap: () {
                 // Navigate to history page
-                print("Navigate to history page");
+                Navigator.pushNamed(context, '/history'); // Navigate to history page
               },
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -250,8 +289,8 @@ class ProfilePage extends StatelessWidget {
                     'History',
                     style: GoogleFonts.getFont(
                       'Poppins',
-                      fontWeight: FontWeight.w500,
-                      fontSize: screenWidth * 0.035, // Adjusted font size
+                      fontWeight: FontWeight.w600,
+                      fontSize: screenWidth * 0.045, // Adjusted font size
                       color: Color(0xFFFFFFFF),
                     ),
                   ),
@@ -259,16 +298,16 @@ class ProfilePage extends StatelessWidget {
                   Container(
                     decoration: BoxDecoration(
                       color: Color(0xFFFFFFFF),
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(27),
                     ),
                     width: 32,
                     height: 32,
                     child: Padding(
-                      padding: EdgeInsets.all(4),
+                      padding: EdgeInsets.all(7),
                       child: SvgPicture.asset(
                         'assets/vectors/rightArrow.svg',
-                        width: 16,
-                        height: 16,
+                        width: 10,
+                        height: 10,
                       ),
                     ),
                   ),
@@ -328,6 +367,12 @@ class ProfilePage extends StatelessWidget {
             break;
           case "Challenges":
             Navigator.pushNamed(context, '/challenges'); // Navigate to Challenges Page
+            break;
+          case "My Badges":
+            Navigator.pushNamed(context, '/my_badges'); // Navigate to Challenges Page
+            break;
+          case "Enter PIN":
+            Navigator.pushNamed(context, '/enter_pin'); // Navigate to Challenges Page
             break;
         //  case "Enter PIN":
         //    Navigator.pushNamed(context, '/challenges'); // Navigate to Enter PIN  page

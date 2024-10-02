@@ -10,6 +10,8 @@ import 'history.dart';
 import 'wallet.dart';
 import 'feedback.dart';
 import 'challenges.dart';
+import 'my_badges.dart';
+import 'enter_pin.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +32,8 @@ class MyApp extends StatelessWidget {
         '/signinpage': (context) => SignInPage(),
         '/feedback': (context) => FeedbackPage(),
         '/challenges':(context) => ChallengesPage(),
+        '/my_badges':(context) => MyBadgesPage(),
+        '/enter_pin':(context) => EnterPINCodePage(),
 
       },
       title: 'Flutter Demo',

@@ -4,7 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:http/http.dart' as http;
 import 'qr_success.dart';
+import 'dart:convert';
 
 class QRScannerPage extends StatefulWidget {
   @override
@@ -12,7 +14,6 @@ class QRScannerPage extends StatefulWidget {
 }
 
 class _QRScannerPageState extends State<QRScannerPage> {
-
   bool _isScanning = true; // State variable to track if scanning is active
   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
   QRViewController? controller;
@@ -48,40 +49,8 @@ class _QRScannerPageState extends State<QRScannerPage> {
     await controller?.pauseCamera();
 
     try {
-      // Manually parse the query string into key-value pairs
-      Map<String, String> qrData = {};
-      List<String> pairs = scanData.split('&');
-      for (String pair in pairs) {
-        List<String> keyValue = pair.split('=');
-        if (keyValue.length == 2) {
-          qrData[keyValue[0]] = Uri.decodeComponent(keyValue[1]); // Decode URL-encoded value
-        }
-      }
+      final trashItemID = scanData;
 
-      // Extract parameters from the manually parsed data
-      final timestamp = qrData['timestamp'];
-      final itemType = qrData['type'];
-      final numItemsString = qrData['num'];
-      final pinCode = qrData['pinCode'];
-      final pointsAssigned = qrData['pointsAssigned'];
-
-      // Check for missing parameters
-      if (timestamp == null || itemType == null || numItemsString == null || pinCode == null || pointsAssigned == null) {
-        throw Exception('Missing QR Code parameters: Ensure timestamp, type, num, pointsAssigned, and pinCode are present.');
-      }
-
-      final numOfItems = int.tryParse(numItemsString);
-      if (numOfItems == null) {
-        throw Exception('Invalid number of items format.');
-      }
-
-      // Decode and parse the timestamp
-      final parsedTimestamp = DateTime.tryParse(timestamp);
-      if (parsedTimestamp == null) {
-        throw Exception('Invalid timestamp format.');
-      }
-
-      // Get the currently logged-in user's ID
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -91,52 +60,45 @@ class _QRScannerPageState extends State<QRScannerPage> {
       }
       final userID = user.uid;
 
-      // Use the scanned timestamp for consistency
-      final expiryTime = parsedTimestamp.add(const Duration(days: 30));
+      DocumentSnapshot trashItemDoc = await _firestore.collection('trashItems').doc(trashItemID).get();
 
-      // Check if the QR code already exists in Firestore
-      QuerySnapshot querySnapshot = await _firestore
-          .collection('trashItems')
-          .where('pinCode', isEqualTo: pinCode)
-          .limit(1)
-          .get();
-
-      if (querySnapshot.docs.isNotEmpty) {
+      if (!trashItemDoc.exists) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: This QR Code has already been used!')),
+          SnackBar(content: Text('Error: Invalid QR Code!')),
         );
-      } else {
-        await _firestore.collection('trashItems').add({
-          'timestamp': parsedTimestamp,
-          'type': itemType,
-          'numOfItems': numOfItems,
-          'pointsAssigned': pointsAssigned,
-          'pinCode': pinCode,
-          'userID': userID,
-          'status': 'active',
-          'expiryTime': expiryTime,
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('QR Code data saved successfully!')),
-        );
-
-        // Dispose of the camera resources before navigating to the success page
-        controller?.dispose();
-
-        // Navigate to the success page and pass the data
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => QRSuccessPage(
-              pointsAssigned: pointsAssigned,
-              numOfItems: numOfItems.toString(),
-              itemType: itemType,
-              timestamp: timestamp,
-            ),
-          ),
-        );
+        return;
       }
+
+      final data = trashItemDoc.data() as Map<String, dynamic>;
+
+      if (data.containsKey('userID')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: This QR Code has already been claimed!')),
+        );
+        return;
+      }
+
+      // Update the trash item with the user ID
+      await _firestore.collection('trashItems').doc(trashItemID).update({
+        'userID': userID,
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('QR Code claimed successfully!')),
+      );
+
+      // Ensure numeric values are converted to strings using .toString()
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => QRSuccessPage(
+            pointsAssigned: data['pointsAssigned'].toString(),  // Convert int to String
+            numOfItems: data['numOfItems'].toString(),  // Convert int to String
+            itemType: data['type'],
+            timestamp: (data['timestamp'] as Timestamp).toDate().toString(),  // Ensure Timestamp is handled correctly
+          ),
+        ),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: ${e.toString()}')),
@@ -147,6 +109,83 @@ class _QRScannerPageState extends State<QRScannerPage> {
       });
     }
   }
+
+
+  Future<void> _updateUserWallet(String userID, int pointsAssigned) async {
+    try {
+      final url = 'https://<your-azure-function-app-url>/updateUserWallet'; // Replace with your actual Azure Function URL
+      final response = await http.post(
+        Uri.parse(url),
+        body: {
+          'userID': userID,
+          'pointsAssigned': pointsAssigned.toString(),
+        },
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to update user wallet.');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating user wallet: ${e.toString()}')),
+      );
+    }
+  }
+
+  Future<void> _updateUserHistory(String userID, String trashItemID) async {
+    try {
+      final url = 'https://<your-azure-function-app-url>/updateUserHistory'; // Replace with your actual Azure Function URL
+      final response = await http.post(
+        Uri.parse(url),
+        body: {
+          'userID': userID,
+          'trashItemID': trashItemID,
+        },
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to update user history.');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating user history: ${e.toString()}')),
+      );
+    }
+  }
+
+  Future<void> updateUserBadges(String userID, String itemType, int pointsAssigned) async {
+    final url = Uri.parse('https://<your-function-app-name>.azurewebsites.net/api/updateUserBadges');
+
+    // Prepare the body of the POST request
+    final body = jsonEncode({
+      'userID': userID,
+      'itemType': itemType,
+      'pointsAssigned': pointsAssigned,
+    });
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: body,
+      );
+
+      if (response.statusCode == 200) {
+        // Request successful, handle the response
+        final responseData = jsonDecode(response.body);
+        print("Badges updated: ${responseData['badgesUnlocked']}");
+      } else {
+        // Handle error response
+        print("Failed to update badges: ${response.statusCode}");
+      }
+    } catch (e) {
+      // Handle any network or parsing errors
+      print("Error while calling Azure Function: $e");
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
     double screenWidth = MediaQuery.of(context).size.width; // Getting screen width for responsive sizing
@@ -222,13 +261,12 @@ class _QRScannerPageState extends State<QRScannerPage> {
         children: [
           buildMenuItem(context, "Home", "assets/vectors/homeSelected.svg", 30, 30, Colors.green, screenWidth, false, "/profile"),
           buildMenuItem(context, "QR Scan", "assets/vectors/qrCodeHome.svg", 30, 30, Colors.green, screenWidth, true, "/scan_qr"), // Selected Item
-          buildMenuItem(context, "my Badges", "assets/vectors/medalHome.svg", 30, 30, Colors.green, screenWidth, false, "/badges"),
+          buildMenuItem(context, "My Badges", "assets/vectors/medalHome.svg", 30, 30, Colors.green, screenWidth, false, "/my_badges"),
           buildMenuItem(context, "Settings", "assets/vectors/settingsHome.svg", 30, 30, Colors.green, screenWidth, false, "/settings"),
         ],
       ),
     );
   }
-
 
   Widget buildMenuItem(
       BuildContext context,
@@ -287,5 +325,4 @@ class _QRScannerPageState extends State<QRScannerPage> {
       ),
     );
   }
-
 }

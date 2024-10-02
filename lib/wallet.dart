@@ -121,7 +121,7 @@ class _WalletPageState extends State<WalletPage> {
                           textAlign: TextAlign.center,
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.w600,
-                            fontSize: 2,
+                            fontSize: 30,
                             color: Color(0xFF138A36),
                           ),
                         ),

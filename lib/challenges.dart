@@ -1,61 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class ChallengesPage extends StatelessWidget {
-  final List<Map<String, String>> badges = [
-    {
-      'title': 'First Step',
-      'description': 'Recycle your first trash item',
-      'icon': 'assets/vectors/first_step.svg'
-    },
-    {
-      'title': 'Recycler Rookie',
-      'description': 'Recycle 5 items in total',
-      'icon': 'assets/vectors/recycler_rookie.svg'
-    },
-    {
-      'title': 'Plastic Hero',
-      'description': 'Recycle 10 plastic items',
-      'icon': 'assets/vectors/plastic_hero.svg'
-    },
-    {
-      'title': 'Metal Guardian',
-      'description': 'Recycle 15 metal items',
-      'icon': 'assets/vectors/metal_guardian.svg'
-    },
-    {
-      'title': 'Paper Saver',
-      'description': 'Recycle 20 paper items',
-      'icon': 'assets/vectors/paper_saver.svg'
-    },
-    {
-      'title': 'Consistent Crusader',
-      'description': 'Recycle every day for a week',
-      'icon': 'assets/vectors/consistent_crusader.svg'
-    },
-    {
-      'title': 'Eco Warrior',
-      'description': 'Recycle 100 items of any type',
-      'icon': 'assets/vectors/eco_warrior.svg'
-    },
-    {
-      'title': 'Green Navigator',
-      'description': 'Collect 2000 points in your wallet',
-      'icon': 'assets/vectors/green_navigator.svg'
-    },
-    {
-      'title': 'Planet Protector',
-      'description': 'Collect 10,000 points in your wallet',
-      'icon': 'assets/vectors/planet_protector.svg'
-    },
-    {
-      'title': 'Zero Waste Advocate',
-      'description': 'Recycle 150 items cumulative without skipping a day for 30 consecutive days',
-      'icon': 'assets/vectors/zero_waste.svg'
-    },
-  ];
-
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   @override
   Widget build(BuildContext context) {
     double screenWidth = MediaQuery.of(context).size.width;
@@ -77,93 +26,115 @@ class ChallengesPage extends StatelessWidget {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        child: Container(
-          padding: EdgeInsets.fromLTRB(17, 20, 16, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Title with Info Icon
-              Row(
-                children: [
-                  Text(
-                    'Badges To Collect',
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 19,
-                      color: Color(0xFF1E7C4D),
-                    ),
-                  ),
-                  SizedBox(width: 80),
-                  GestureDetector(
-                    onTap: () => _showInfoDialog(context), // Show dialog when tapped
-                    child: Icon(
-                      Icons.info_outline,
-                      color: Color(0xFF1E7C4D),
-                      size: 30,
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 50),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: NeverScrollableScrollPhysics(),
-                itemCount: badges.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                ),
-                itemBuilder: (context, index) {
-                  final badge = badges[index];
-                  return GestureDetector(
-                    onTap: () => _showBadgeDialog(context, badge),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.09),
-                            offset: Offset(0, 5),
-                            blurRadius: 30,
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+        body: FutureBuilder<QuerySnapshot>(
+          future: _firestore.collection('challenges').orderBy('rank').get(),
+          // Fetch badges ordered by rank
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Center(child: Text('Error fetching badges: ${snapshot.error}'));
+            }
+
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return Center(child: Text('No badges available'));
+            }
+            final badges = snapshot.data!.docs;
+
+              return SingleChildScrollView(
+                child: Container(
+                  padding: EdgeInsets.fromLTRB(17, 20, 16, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
-                          SvgPicture.asset(
-                            badge['icon']!,
-                            width: 90,
-                            height: 90,
-                          ),
-                          SizedBox(height: 10),
                           Text(
-                            badge['title']!,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Color.fromRGBO(151, 151, 151, 1),
-                              fontFamily: 'Poppins',
-                              fontSize: 15,
-                              fontWeight: FontWeight.normal,
+                            'Badges To Collect',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 19,
+                              color: Color(0xFF1E7C4D),
+                            ),
+                          ),
+                          SizedBox(width: 80),
+                          GestureDetector(
+                            onTap: () => _showInfoDialog(context),
+                            child: Icon(
+                              Icons.info_outline,
+                              color: Color(0xFF1E7C4D),
+                              size: 30,
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
+                      SizedBox(height: 50),
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: NeverScrollableScrollPhysics(),
+                        itemCount: badges.length,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                        ),
+                        itemBuilder: (context, index) {
+                          final badgeData = badges[index].data() as Map<String, dynamic>;
+                          return GestureDetector(
+                            onTap: () => _showBadgeDialog(context, badgeData),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(15),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.09),
+                                    offset: Offset(0, 5),
+                                    blurRadius: 30,
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SvgPicture.network(
+                                    badgeData['icon'], // Load SVG from Firebase Storage URL
+                                    width: 90,
+                                    height: 90,
+                                    placeholderBuilder: (BuildContext context) =>
+                                        CircularProgressIndicator(), // Show loader
+                                  ),
+                                  SizedBox(height: 10),
+                                  Text(
+                                    badgeData['title'],
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Color.fromRGBO(151, 151, 151, 1),
+                                      fontFamily: 'Poppins',
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.normal,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
         ),
-      ),
       bottomNavigationBar: buildBottomNavigationBar(context, screenWidth),
     );
+
+
   }
 
+// Info dialog
   void _showInfoDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -176,29 +147,27 @@ class ChallengesPage extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Bold and larger text for the first sentence
               Text(
                 'Earn badges by completing challenges!',
                 style: GoogleFonts.poppins(
-                  fontSize: 16, // Bigger font size
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF1E7C4D),
                 ),
                 textAlign: TextAlign.center,
               ),
-              SizedBox(height: 10), // Spacing between the texts
-              // Smaller, regular text for the second sentence
+              SizedBox(height: 10),
               Text(
                 'Meet the requirements to collect badges and view them on the "My Badges" page.',
                 style: GoogleFonts.poppins(
-                  fontSize: 14, // Smaller font size
+                  fontSize: 14,
                   color: Color(0xFF555555),
                 ),
                 textAlign: TextAlign.center,
               ),
             ],
           ),
-          actionsAlignment: MainAxisAlignment.center, // Center the OK button
+          actionsAlignment: MainAxisAlignment.center,
           actions: [
             TextButton(
               child: Text(
@@ -217,7 +186,8 @@ class ChallengesPage extends StatelessWidget {
   }
 
 
-  void _showBadgeDialog(BuildContext context, Map<String, String> badge) {
+  // Badge dialog
+  void _showBadgeDialog(BuildContext context, Map<String, dynamic> badge) {
     showDialog(
       context: context,
       builder: (context) {
@@ -233,14 +203,14 @@ class ChallengesPage extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SvgPicture.asset(
-                    badge['icon']!,
+                  SvgPicture.network(
+                    badge['icon'],
                     width: 60,
                     height: 60,
                   ),
                   SizedBox(height: 10),
                   Text(
-                    badge['title']!,
+                    badge['title'],
                     style: GoogleFonts.poppins(
                       fontWeight: FontWeight.w600,
                       fontSize: 16,
@@ -249,7 +219,7 @@ class ChallengesPage extends StatelessWidget {
                   ),
                   SizedBox(height: 10),
                   Text(
-                    badge['description']!,
+                    badge['description'],
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
                       fontWeight: FontWeight.normal,
@@ -265,6 +235,7 @@ class ChallengesPage extends StatelessWidget {
       },
     );
   }
+}
 
   Widget buildBottomNavigationBar(BuildContext context, double screenWidth) {
     return Container(
@@ -335,4 +306,4 @@ class ChallengesPage extends StatelessWidget {
       ),
     );
   }
-}
+

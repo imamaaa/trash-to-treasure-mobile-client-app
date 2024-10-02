@@ -3,7 +3,16 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:qr_flutter/qr_flutter.dart'; // Add this package in pubspec.yaml for QR code display
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:intl/intl.dart'; // Import intl package
+
+// Format the Firestore timestamp to a user-friendly format
+String formatTimestamp(Timestamp timestamp) {
+  DateTime dateTime = timestamp.toDate();
+  // Format the date (e.g., "Jan 15, 2024 at 3:30 PM")
+  String formattedDate = DateFormat('MMM dd, yyyy - hh:mm a').format(dateTime);
+  return formattedDate;
+}
 
 class HistoryPage extends StatefulWidget {
   @override
@@ -24,7 +33,6 @@ class _HistoryPageState extends State<HistoryPage> {
     super.initState();
     userId = _auth.currentUser?.uid ?? '';
     fetchUserHistory();
-    updateExpiredCodes();
   }
 
   // Fetch the user history from Firestore
@@ -33,32 +41,39 @@ class _HistoryPageState extends State<HistoryPage> {
 
     DocumentSnapshot userHistorySnapshot = await userHistoryRef.get();
     if (userHistorySnapshot.exists) {
+      // Retrieve arrays for active, redeemed, and expired
       List activeCodes = userHistorySnapshot['active'] ?? [];
       List redeemedCodes = userHistorySnapshot['redeemed'] ?? [];
       List expiredCodes = userHistorySnapshot['expired'] ?? [];
 
+      // Fetch details for each trash item ID and store in the map
       userHistory['active'] = await fetchTrashItemsDetails(activeCodes);
       userHistory['redeemed'] = await fetchTrashItemsDetails(redeemedCodes);
       userHistory['expired'] = await fetchTrashItemsDetails(expiredCodes);
+
+      // Trigger UI update
       setState(() {});
     }
   }
 
-  // Fetch details for each trash item ID in the array
+// Fetch details for each trash item ID in the array
   Future<List<Map<String, dynamic>>> fetchTrashItemsDetails(List<dynamic> trashItemIds) async {
     List<Map<String, dynamic>> details = [];
+
     for (String id in trashItemIds) {
       DocumentSnapshot snapshot = await FirebaseFirestore.instance.collection('trashItems').doc(id).get();
       if (snapshot.exists) {
-        details.add(snapshot.data() as Map<String, dynamic>);
+        // Add the document ID along with other data
+        Map<String, dynamic> itemData = snapshot.data() as Map<String, dynamic>;
+        itemData['id'] = snapshot.id; // Store the document ID as 'id'
+        details.add(itemData); // Add the entire document data
       }
     }
-    return details;
+
+    return details; // Return the list of item details
   }
 
-
-  // Function to display code details in a dialog
-  void showCodeDetails(BuildContext context, String trashItemId) async {
+  void showCodeDetails(BuildContext context, String trashItemId, String status) async {
     // Fetch the trash item data from Firestore
     DocumentSnapshot trashItem = await FirebaseFirestore.instance.collection('trashItems').doc(trashItemId).get();
 
@@ -69,31 +84,137 @@ class _HistoryPageState extends State<HistoryPage> {
       showDialog(
         context: context,
         builder: (context) {
-          return AlertDialog(
-            title: Text('Code Details'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                QrImage(
-                  data: qrData,
-                  version: QrVersions.auto,
-                  size: 200.0,
+          // Check if the reward is active, redeemed, or expired
+          if (status == 'active') {
+            // If the reward is active, show the QR code and PIN
+            return AlertDialog(
+              title: Center(
+                child: Text(
+                  'Reward Details',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: Colors.teal,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                SizedBox(height: 10),
-                Text('PIN Code: $pinCode', style: TextStyle(fontSize: 16)),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Close'),
               ),
-            ],
-          );
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 300, // Fixed width for QR code
+                    height: 300, // Fixed height for QR code
+                    child: QrImageView(
+                      data: qrData, // Encode trashItemId into QR code
+                      errorCorrectionLevel: QrErrorCorrectLevel.H,
+                      version: QrVersions.auto,
+                      gapless: true,
+                      backgroundColor: Colors.white,
+                      eyeStyle: QrEyeStyle(color: Colors.black),
+                    ),
+                  ),
+                  SizedBox(height: 30),
+                  Center(
+                    child: Text(
+                      'PIN Code: $pinCode',
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                Center(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      'Close',
+                      style: TextStyle(color: Colors.teal),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          } else if (status == 'redeemed') {
+            // If the reward is redeemed, show this message
+            return AlertDialog(
+              title: Center(
+                child: Text(
+                  'Reward Redeemed',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: Colors.orange,
+                  ),
+                ),
+              ),
+              content: Text(
+                'This reward has already been redeemed.',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.normal,
+                  fontSize: 16,
+                  color: Colors.black,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              actions: [
+                Center(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      'Close',
+                      style: TextStyle(color: Colors.teal),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          } else if (status == 'expired') {
+            // If the reward is expired, show this message
+            return AlertDialog(
+              title: Center(
+                child: Text(
+                  'Reward Expired',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: Colors.red,
+                  ),
+                ),
+              ),
+              content: Text(
+                'This reward has expired.',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.normal,
+                  fontSize: 16,
+                  color: Colors.black,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              actions: [
+                Center(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      'Close',
+                      style: TextStyle(color: Colors.teal),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+          return Container(); // Fallback (won't usually reach here)
         },
       );
     }
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -101,35 +222,46 @@ class _HistoryPageState extends State<HistoryPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Color(0xFF138A36),
         elevation: 0,
         leading: IconButton(
           icon: SvgPicture.asset('assets/vectors/backArrow.svg'),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          'Back to Profile',
+          'History',
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.w600,
             fontSize: 20,
-            color: Color(0xFF343434),
+            color: Colors.white,
           ),
         ),
       ),
       body: ListView(
         padding: EdgeInsets.fromLTRB(24, 20, 24, 0),
         children: [
-          buildHistorySection('Active Codes', userHistory['active']),
-          buildHistorySection('Redeemed Codes', userHistory['redeemed']),
-          buildHistorySection('Expired Codes', userHistory['expired']),
+          buildHistorySection('Active Rewards', userHistory['active'] ?? []),
+          buildHistorySection('Redeemed Rewards', userHistory['redeemed'] ?? []),
+          buildHistorySection('Expired Rewards', userHistory['expired'] ?? []),
         ],
       ),
       bottomNavigationBar: buildBottomNavigationBar(context, screenWidth),
     );
   }
 
-  // Builds each section of history (active, redeemed, expired)
   Widget buildHistorySection(String title, List<Map<String, dynamic>> historyList) {
+    Color titleColor;
+
+    // Set the color based on the title
+    if (title == 'Active Rewards') {
+      titleColor = Color(0xFF38A169); // Teal for active codes
+    } else if (title == 'Redeemed Rewards') {
+      titleColor = Colors.orange; // Green for redeemed codes
+    } else if (title == 'Expired Rewards') {
+      titleColor = Color(0xFFE53E3E); // Red for expired codes
+    } else {
+      titleColor = Colors.black; // Default color
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -138,7 +270,7 @@ class _HistoryPageState extends State<HistoryPage> {
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.bold,
             fontSize: 18,
-            color: Colors.black,
+            color: titleColor,
           ),
         ),
         SizedBox(height: 10),
@@ -147,11 +279,18 @@ class _HistoryPageState extends State<HistoryPage> {
       ],
     );
   }
-
-  // Builds each history item tile
   Widget historyItem(BuildContext context, Map<String, dynamic> data) {
     return GestureDetector(
-      onTap: () => showCodeDetails(context, data['id']),
+      onTap: () {
+        // Ensure the trash item has a valid ID before showing details
+        if (data['id'] != null && data['id'] is String && data['id'].isNotEmpty) {
+          showCodeDetails(context, data['id'], data['status']); // Pass the document ID
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Invalid trash item ID or data is missing.'),
+          ));
+        }
+      },
       child: Container(
         margin: EdgeInsets.only(bottom: 20),
         decoration: BoxDecoration(
@@ -175,20 +314,24 @@ class _HistoryPageState extends State<HistoryPage> {
                 children: [
                   Expanded(
                     child: Text(
-                      data['type'],
+                      data['type'] ?? 'unknown type', // Show the type of item
                       style: GoogleFonts.poppins(
                         fontWeight: FontWeight.w600,
-                        fontSize: 16,
+                        fontSize: 20,
                         color: Color(0xFF343434),
                       ),
                     ),
                   ),
                   Text(
-                    data['timestamp'].toDate().toString(), // Assuming timestamp is stored
+                    'status: ${data['status'] ?? 'unknown'}',
                     style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w500,
                       fontSize: 12,
-                      color: Color(0xFF979797),
+                      color: data['status'] == 'expired'
+                          ? Colors.red
+                          : data['status'] == 'active'
+                          ? Colors.green
+                          : Colors.orange,
                     ),
                   ),
                 ],
@@ -198,26 +341,33 @@ class _HistoryPageState extends State<HistoryPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Status: ${data['status']}',
+                    'items: ${data['numOfItems'] ?? 'unknown'}', // Show number of items
                     style: GoogleFonts.poppins(
                       fontWeight: FontWeight.w500,
                       fontSize: 12,
-                      color: data['status'] == 'Expired'
-                          ? Colors.red
-                          : data['status'] == 'Redeemed'
-                          ? Colors.green
-                          : Colors.orange,
+                      color: Colors.indigo,
                     ),
                   ),
                   Text(
-                    'Points: ${data['points']}',
+                    'points: ${data['pointsAssigned'] ?? 0}',
                     style: GoogleFonts.poppins(
                       fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                      color: Color(0xFF138A36),
+                      fontSize: 13,
+                      color: Colors.brown,
                     ),
                   ),
                 ],
+              ),
+              SizedBox(height: 8),
+              // Display the number of items and document ID
+
+              Text(
+                formatTimestamp(data['timestamp']), // Format timestamp to a user-friendly format
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                  color: Color(0xFF979797),
+                ),
               ),
             ],
           ),
@@ -225,6 +375,7 @@ class _HistoryPageState extends State<HistoryPage> {
       ),
     );
   }
+
 
   // Bottom Navigation Bar
   Widget buildBottomNavigationBar(BuildContext context, double screenWidth) {

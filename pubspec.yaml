@@ -25,6 +25,8 @@ dependencies:
   permission_handler: ^11.3.1
   intl: ^0.19.0
   qr_flutter: ^4.1.0
+  http: ^1.2.2
+
 
 
 
