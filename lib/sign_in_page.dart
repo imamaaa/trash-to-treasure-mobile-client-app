@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'profilePage.dart';
 import 'sign_up.dart';
 
@@ -104,7 +105,27 @@ class _SignInPageState extends State<SignInPage> {
         password: password,
       );
 
-      // If successful, navigate to the ProfilePage
+      // Fetch user document from Firestore
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user?.uid)
+          .get();
+
+      if (userDoc.exists) {
+        Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+
+        // Check if 'disabled' field exists and its value
+        if (userData.containsKey('disabled') && userData['disabled'] == true) {
+          _showErrorDialog(
+            context,
+            'Account Disabled',
+            'Your account has been disabled. Please contact app support at imamaaamjad@gmail.com.',
+          );
+          return;
+        }
+      }
+
+      // If no 'disabled' field or not disabled, proceed to profile page
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => ProfilePage()),
       );

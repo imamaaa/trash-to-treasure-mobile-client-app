@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:myapp/sign_in_page.dart';
 import 'firebase_options.dart';
 import 'package:flutter/material.dart';
+import 'package:overlay_support/overlay_support.dart';
 import 'splash_screen.dart';
 import 'profilePage.dart';
 import 'scan_qr.dart';
@@ -12,6 +13,7 @@ import 'feedback.dart';
 import 'challenges.dart';
 import 'my_badges.dart';
 import 'enter_pin.dart';
+import 'stores.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,7 +24,8 @@ Future<void> main() async {
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return OverlaySupport(
+    child: MaterialApp(
       routes: {
         '/profile': (context) => ProfilePage(),
         '/scan_qr': (context) => QRScannerPage(),
@@ -34,6 +37,8 @@ class MyApp extends StatelessWidget {
         '/challenges':(context) => ChallengesPage(),
         '/my_badges':(context) => MyBadgesPage(),
         '/enter_pin':(context) => EnterPINCodePage(),
+        '/stores':(context) => StoresPage(),
+
 
       },
       title: 'Flutter Demo',
@@ -42,6 +47,7 @@ class MyApp extends StatelessWidget {
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       home: SplashScreen(),
+    )
     );
   }
 }

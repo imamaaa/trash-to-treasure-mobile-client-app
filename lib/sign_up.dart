@@ -32,6 +32,38 @@ void _showErrorDialog(BuildContext context, String title, String message) {
 }
 
 class SignUpPage1 extends StatelessWidget {
+
+  // Function to create user collections in Firestore after signup
+  Future<void> _createUserCollections(String userID) async {
+    final FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+    // Initialize userHistory collection
+    await firestore.collection('userHistory').doc(userID).set({
+      'active': [],   // Initialize active rewards as an empty list
+      'expired': [],  // Initialize expired rewards as an empty list
+      'redeemed': [], // Initialize redeemed rewards as an empty list
+    });
+
+    // Initialize userBadges collection
+    await firestore.collection('userBadges').doc(userID).set({
+      'badgesEarned': [], // Empty list of earned badges
+      'totalItemsRecycled': 0,
+      'totalPointsRecycled': 0,
+      'consecutiveDaysRecycled': 0,
+      'lastDateRecycled': null,
+      'plasticItemsRecycled': 0,
+      'paperItemsRecycled': 0,
+      'metalItemsRecycled': 0,
+    });
+
+    // Initialize userWallets collection
+    await firestore.collection('userWallets').doc(userID).set({
+      'currentPoints': 0, // Initialize with 0 points
+    });
+
+    print('User collections created successfully.');
+  }
+
   @override
   Widget build(BuildContext context) {
     double screenWidth = MediaQuery.of(context).size.width;
@@ -74,9 +106,7 @@ class SignUpPage1 extends StatelessWidget {
                           fontSize: screenWidth * 0.053,
                           height: 1.4,
                           color: Color(0xFFFFFFFF),
-
                         ),
-
                       ),
                     ],
                   ),
@@ -282,6 +312,9 @@ class SignUpPage1 extends StatelessWidget {
                             ),
                           ),
                         ),
+
+
+
                         GestureDetector(
                           onTap: () async {
                             // Check if the email format is correct
@@ -300,8 +333,8 @@ class SignUpPage1 extends StatelessWidget {
                               return;
                             }
 
-                            // Check if the email is already in use
                             try {
+                              // Check if the email is already in use
                               var list = await FirebaseAuth.instance.fetchSignInMethodsForEmail(_emailController.text);
                               if (list.isNotEmpty) {
                                 _showErrorDialog(context, "Account Error", "Email address already in use.");
@@ -315,16 +348,17 @@ class SignUpPage1 extends StatelessWidget {
                               );
 
                               // Save additional user data to Firestore
-                              await FirebaseFirestore.instance.collection('users').doc(userCredential.user?.uid).set(
-                                  {
-                                    'firstName': _firstNameController.text,
-                                    'lastName': _lastNameController.text,
-                                    'email': _emailController.text,
-                                    'password': _passwordController.text,
-                                  });
+                              await FirebaseFirestore.instance.collection('users').doc(userCredential.user?.uid).set({
+                                'firstName': _firstNameController.text,
+                                'lastName': _lastNameController.text,
+                                'email': _emailController.text,
+                              });
 
                               // Send verification email
                               userCredential.user?.sendEmailVerification().then((_) {
+                                // Call _createUserCollections after sending the email verification
+                                _createUserCollections(userCredential.user!.uid);
+
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(builder: (context) => EmailVerificationPage(email: _emailController.text)),
@@ -372,7 +406,7 @@ class SignUpPage1 extends StatelessWidget {
                               onTap: () {
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(builder: (context) => SignInPage()), // Ensure SignInPage is imported and exists
+                                  MaterialPageRoute(builder: (context) => SignInPage()),
                                 );
                               },
                               child: Text(

@@ -36,6 +36,7 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   // Fetch the user history from Firestore
+// Fetch the user history from Firestore
   Future<void> fetchUserHistory() async {
     final userHistoryRef = FirebaseFirestore.instance.collection('userHistory').doc(userId);
 
@@ -47,14 +48,66 @@ class _HistoryPageState extends State<HistoryPage> {
       List expiredCodes = userHistorySnapshot['expired'] ?? [];
 
       // Fetch details for each trash item ID and store in the map
-      userHistory['active'] = await fetchTrashItemsDetails(activeCodes);
-      userHistory['redeemed'] = await fetchTrashItemsDetails(redeemedCodes);
-      userHistory['expired'] = await fetchTrashItemsDetails(expiredCodes);
+      List<Map<String, dynamic>> activeDetails = await fetchTrashItemsDetails(activeCodes);
+      List<Map<String, dynamic>> redeemedDetails = await fetchTrashItemsDetails(redeemedCodes);
+      List<Map<String, dynamic>> expiredDetails = await fetchTrashItemsDetails(expiredCodes);
+
+      // Fetch points for paper from points collection
+      final pointsRef = FirebaseFirestore.instance.collection('points').doc('paper');
+      DocumentSnapshot pointsSnapshot = await pointsRef.get();
+      double paperPoints = pointsSnapshot.exists ? pointsSnapshot['value'].toDouble() : 1.0;
+
+      // Apply the checking logic
+      List<Map<String, dynamic>> updatedActive = [];
+      List<Map<String, dynamic>> updatedRedeemed = [];
+      List<Map<String, dynamic>> updatedExpired = [...expiredDetails]; // Start with existing expired
+
+      DateTime now = DateTime.now();
+
+      // Check and move items between arrays
+      for (var item in activeDetails) {
+        if (item['status'] == 'expired' || (item['expiryTime'] != null && item['expiryTime'].toDate().isBefore(now))) {
+          item['status'] = 'expired';
+          updatedExpired.add(item);
+        } else if (item['status'] == 'redeemed') {
+          updatedRedeemed.add(item);
+        } else {
+          updatedActive.add(item);
+        }
+      }
+
+      for (var item in redeemedDetails) {
+        if (item['status'] == 'expired') {
+          item['status'] = 'expired';
+          updatedExpired.add(item);
+        } else if (item['status'] == 'active') {
+          updatedActive.add(item);
+        } else {
+          updatedRedeemed.add(item);
+        }
+      }
+
+      // Calculate weight for paper items
+      for (var list in [updatedActive, updatedRedeemed, updatedExpired]) {
+        for (var item in list) {
+          if (item['type'] == 'paper') {
+            double pointsAssigned = item['pointsAssigned']?.toDouble() ?? 0.0;
+            item['weight'] = (pointsAssigned / paperPoints).toStringAsFixed(2) + ' grams';
+          }
+        }
+      }
+
+      // Update the userHistory map with the filtered arrays
+      userHistory['active'] = updatedActive;
+      userHistory['redeemed'] = updatedRedeemed;
+      userHistory['expired'] = updatedExpired;
 
       // Trigger UI update
       setState(() {});
     }
   }
+
+
 
 // Fetch details for each trash item ID in the array
   Future<List<Map<String, dynamic>>> fetchTrashItemsDetails(List<dynamic> trashItemIds) async {
@@ -78,7 +131,8 @@ class _HistoryPageState extends State<HistoryPage> {
     DocumentSnapshot trashItem = await FirebaseFirestore.instance.collection('trashItems').doc(trashItemId).get();
 
     if (trashItem.exists) {
-      String pinCode = trashItem['pinCode']; // Assuming your document has a 'pinCode' field
+      // Convert pinCode to String to avoid type issues
+      String pinCode = trashItem['pinCode'].toString(); // Force to String
       String qrData = trashItemId; // Data you want to encode in the QR code
 
       showDialog(
@@ -117,7 +171,7 @@ class _HistoryPageState extends State<HistoryPage> {
                   SizedBox(height: 30),
                   Center(
                     child: Text(
-                      'PIN Code: $pinCode',
+                      'PIN Code: $pinCode', // Safely displaying pinCode as a String
                       style: GoogleFonts.poppins(
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
@@ -279,6 +333,7 @@ class _HistoryPageState extends State<HistoryPage> {
       ],
     );
   }
+
   Widget historyItem(BuildContext context, Map<String, dynamic> data) {
     return GestureDetector(
       onTap: () {
@@ -359,8 +414,16 @@ class _HistoryPageState extends State<HistoryPage> {
                 ],
               ),
               SizedBox(height: 8),
-              // Display the number of items and document ID
-
+              if (data['type'] == 'paper' && data.containsKey('weight')) // Conditionally display weight for paper
+                Text(
+                  'Weight: ${data['weight']}', // Display weight in grams
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 12,
+                    color: Colors.teal,
+                  ),
+                ),
+              SizedBox(height: 8),
               Text(
                 formatTimestamp(data['timestamp']), // Format timestamp to a user-friendly format
                 style: GoogleFonts.poppins(
@@ -375,6 +438,7 @@ class _HistoryPageState extends State<HistoryPage> {
       ),
     );
   }
+
 
 
   // Bottom Navigation Bar

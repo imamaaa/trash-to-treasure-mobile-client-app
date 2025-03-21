@@ -374,9 +374,11 @@ class ProfilePage extends StatelessWidget {
           case "Enter PIN":
             Navigator.pushNamed(context, '/enter_pin'); // Navigate to Challenges Page
             break;
-        //  case "Enter PIN":
-        //    Navigator.pushNamed(context, '/challenges'); // Navigate to Enter PIN  page
-        //    break;
+          case "Stores":
+            Navigator.pushNamed(context, '/stores'); // Navigate to Challenges Page
+            break;
+
+
         }
       },
       child: Container(
