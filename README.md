@@ -28,8 +28,8 @@ For **more details on methodology, implementation, and results**, refer to the *
 - `S24_008_D_TrashtoTreasure.pdf` → **Comprehensive project report detailing methodology & results**  
 
 **This repository is for the Client Mobile App only.** The Web App & Admin Panel repositories can be found here:  
-- **[Client Web App Repo](https://github.com/YOUR_USERNAME/fyp-client-web)**  
-- **[Admin Web App Repo](https://github.com/YOUR_USERNAME/fyp-admin-web)**  
+- **[Client Web App Repo](https://github.com/imamaaa/trash-to-treasure-client-web-app)**  
+- **[Admin Web App Repo](https://github.com/imamaaa/trash-to-treasure-admin-web-app)**  
 
 ---
 
